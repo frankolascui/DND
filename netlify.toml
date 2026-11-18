@@ -1,0 +1,8 @@
+# Por si más adelante publicamos en Netlify: el juego está en cliente/.
+[build]
+  base = "cliente"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
