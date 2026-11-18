@@ -34,6 +34,8 @@ cliente/
     ├── main.ts             Configura Phaser y arranca la escena
     ├── scenes/
     │   └── EscenaJuego.ts  Todo lo que pasa en pantalla
+    ├── ui/
+    │   └── DadoVisual.ts   El d20 animado que aparece al hacer una acción
     ├── mundo/
     │   ├── mapa.ts         El mapa como cuadrícula de números y los cofres
     │   └── personaje.ts    Atributos de D&D, clase y el personaje de prueba
@@ -115,6 +117,27 @@ Interactuar (`interactuar`):
 4. Si hay éxito, marca el cofre como abierto y cambia su dibujo.
 5. Muestra la cuenta completa en pantalla, en verde o en rojo, durante 3 segundos.
 
+### `ui/DadoVisual.ts`: el dado animado
+
+Cuando intentas algo, aparece un d20 en el centro. Pulsas E (o haces clic) y gira hasta pararse en el resultado.
+
+**La idea clave: el dado no decide nada.** El resultado lo calcula `tiradaContraDificultad` en `reglas/dados.ts` *en el momento del lanzamiento*, y el dibujo solo gira hasta ese número. Separar "qué pasa" de "cómo se ve" es lo que nos permitirá que, en la fase 2, el servidor tire el dado y tu pantalla solo lo anime.
+
+El dado es una **máquina de estados**: solo puede estar en uno de cuatro estados, y cada pulsación de E hace algo distinto según el estado en que esté.
+
+```text
+oculto --(acción)--> esperando --(E)--> girando --(se para)--> resultado --(E)--> oculto
+```
+
+Conceptos nuevos:
+
+- **Callback (función que se pasa a otra función).** En `interactuar()` hacemos `this.dado.mostrar(titulo, () => { ... })`. Esa función flecha *no se ejecuta ahí*: el dado la guarda y la llama cuando la lanzas. Igual con `alRevelar`, que abre el cofre justo cuando el dado se para, para que haya suspense.
+- **Tween.** Es una animación de un valor de A a B en un tiempo dado. `addCounter` cuenta de 0 a 1 en 1,4 segundos con `ease: "Cubic.Out"` (rápido al principio, lento al final). En cada paso giramos el dado y cambiamos el número al azar, cada vez más despacio.
+- **Container.** Agrupa la forma y el número para que giren juntos.
+- **`?.` (encadenamiento opcional).** `resultado.alRevelar?.()` significa: "si existe `alRevelar`, llámala; si no, no hagas nada".
+
+En `update()` de la escena hay un `if (this.dado.estaActivo())` al principio: mientras el dado está en pantalla, el jugador no se mueve y la E se la queda el dado.
+
 ## 5. Ejercicios para ti (de fácil a difícil)
 
 1. Cambia la `fuerza` de la guerrera a 8 y comprueba que ahora el modificador sale −1.
@@ -122,5 +145,6 @@ Interactuar (`interactuar`):
 3. Cambia `VELOCIDAD` y mira el efecto.
 4. Haz que el cofre de CD 18 se abra con Destreza en vez de Fuerza (pista: añade un campo `atributo` a `DatosCofre`).
 5. Añade la regla de **ventaja**: una función `tiradaConVentaja` que tire dos d20 y se quede con el mayor.
+6. Cambia `DURACION_GIRO` en `DadoVisual.ts` o el color del dado (busca `0x6b2fb3`).
 
 Si te atascas en alguno, pregúntame y lo resolvemos juntos.
