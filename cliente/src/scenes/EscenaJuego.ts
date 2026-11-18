@@ -9,6 +9,7 @@ import Phaser from "phaser";
 import { MAPA, TAMANO_TILE, ARBOL, AGUA, COFRES } from "../mundo/mapa";
 import { personajeDePrueba } from "../mundo/personaje";
 import { tiradaContraDificultad, describirTirada, modificador } from "../reglas/dados";
+import { DadoVisual } from "../ui/DadoVisual";
 
 const VELOCIDAD = 120;          // píxeles por segundo
 const DISTANCIA_INTERACCION = 44; // qué tan cerca hay que estar de un cofre
@@ -27,6 +28,7 @@ export class EscenaJuego extends Phaser.Scene {
   private cofres: Cofre[] = [];
   private textoTirada!: Phaser.GameObjects.Text;
   private textoAyuda!: Phaser.GameObjects.Text;
+  private dado!: DadoVisual;
 
   constructor() {
     super("EscenaJuego"); // nombre de la escena
@@ -45,6 +47,7 @@ export class EscenaJuego extends Phaser.Scene {
     }
 
     this.crearInterfaz();
+    this.dado = new DadoVisual(this);
 
     // Pedimos a Phaser que vigile estas teclas.
     this.teclas = this.input.keyboard!.addKeys("W,A,S,D,E") as typeof this.teclas;
@@ -52,6 +55,16 @@ export class EscenaJuego extends Phaser.Scene {
 
   // ---------- update: se ejecuta en cada fotograma ----------
   update(): void {
+    // Mientras el dado está en pantalla, el jugador se queda quieto
+    // y la tecla E sirve para lanzar el dado o cerrarlo.
+    if (this.dado.estaActivo()) {
+      this.jugador.setVelocity(0, 0);
+      if (Phaser.Input.Keyboard.JustDown(this.teclas.E)) {
+        this.dado.pulsar();
+      }
+      return; // "return" sale de la función: no se ejecuta lo de abajo
+    }
+
     this.moverJugador();
 
     // JustDown = "se acaba de pulsar en este fotograma" (no "se mantiene").
@@ -90,18 +103,27 @@ export class EscenaJuego extends Phaser.Scene {
       return;
     }
 
-    // La regla del juego: d20 + modificador de Fuerza contra la dificultad del cofre.
-    // Fuerza 15 -> modificador +2.
-    const modFuerza = modificador(personajeDePrueba.atributos.fuerza);
-    const resultado = tiradaContraDificultad(modFuerza, cofre.dificultad);
+    // Mostramos el dado. Le pasamos una función "flecha" (() => {...}) que
+    // NO se ejecuta ahora, sino cuando el jugador lance el dado.
+    this.dado.mostrar(`Forzar el cofre (CD ${cofre.dificultad})\nd20 + Fuerza`, () => {
+      // La regla del juego: d20 + modificador de Fuerza contra la dificultad del cofre.
+      // Fuerza 15 -> modificador +2.
+      const modFuerza = modificador(personajeDePrueba.atributos.fuerza);
+      const resultado = tiradaContraDificultad(modFuerza, cofre.dificultad);
 
-    if (resultado.exito) {
-      cofre.abierto = true;
-      cofre.sprite.setTexture("cofre-abierto");
-    }
-
-    const color = resultado.exito ? "#8ef08e" : "#f08e8e";
-    this.mostrarTirada("Intentas forzar el cofre...\n" + describirTirada(resultado, "Fuerza"), color);
+      return {
+        valor: resultado.dado,
+        texto: describirTirada(resultado, "Fuerza"),
+        color: resultado.exito ? "#8ef08e" : "#f08e8e",
+        // Esto se ejecuta cuando el dado se para: así hay suspense.
+        alRevelar: () => {
+          if (resultado.exito) {
+            cofre.abierto = true;
+            cofre.sprite.setTexture("cofre-abierto");
+          }
+        },
+      };
+    });
   }
 
   /** Devuelve el cofre más cercano si está a tiro, o null si no hay ninguno. */
