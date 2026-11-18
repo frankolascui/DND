@@ -3,6 +3,7 @@
 // Aquí solo configuramos Phaser y le decimos qué escena arrancar.
 // ============================================================
 import Phaser from "phaser";
+import { EscenaCreacion } from "./scenes/EscenaCreacion";
 import { EscenaJuego } from "./scenes/EscenaJuego";
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -15,7 +16,8 @@ const config: Phaser.Types.Core.GameConfig = {
     default: "arcade",        // física sencilla: cajas que chocan
     arcade: { debug: false },
   },
-  scene: [EscenaJuego],
+  // La primera de la lista es la que arranca.
+  scene: [EscenaCreacion, EscenaJuego],
 };
 
 new Phaser.Game(config);
