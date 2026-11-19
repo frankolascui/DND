@@ -24,22 +24,16 @@ export const MAPA: number[][] = [
   [1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,1],
   [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
   [1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1],
-  [1,0,0,0,2,2,0,0,0,0,0,0,0,0,1,1,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1],
+  [1,0,0,0,2,2,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
   [1,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 ];
 
-// Dónde hay cofres (en casillas, no en píxeles) y qué dificultad tiene abrirlos.
-export interface DatosCofre {
-  columna: number;
-  fila: number;
-  dificultad: number;
-}
+// Los cofres, la puerta y el ermitaño están ahora en mundo/objetos.ts.
 
-export const COFRES: DatosCofre[] = [
-  { columna: 3, fila: 2, dificultad: 10 },  // fácil, cerca del inicio
-  { columna: 17, fila: 2, dificultad: 14 }, // más lejos, más difícil
-  { columna: 16, fila: 12, dificultad: 18 }, // el más lejano, el más difícil
-];
+/** Pasa de casilla a píxel (centro de la casilla). */
+export function aPixel(casilla: number): number {
+  return casilla * TAMANO_TILE + TAMANO_TILE / 2;
+}
