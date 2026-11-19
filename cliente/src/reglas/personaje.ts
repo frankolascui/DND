@@ -4,10 +4,10 @@
 // ellos: PG, CA, competencias y el bono de cada habilidad.
 // ============================================================
 import { modificador } from "./dados";
-import { ATRIBUTO_DE, type Atributo, type Habilidad } from "./habilidades";
-import type { Puntuaciones } from "./compraPorPuntos";
-import type { DatosClase } from "./clases";
-import type { DatosOrigen } from "./origenes";
+import { ATRIBUTO_DE, ATRIBUTOS, type Atributo, type Habilidad } from "./habilidades";
+import { type Puntuaciones, PUNTUACION_MINIMA, PUNTUACION_MAXIMA, puntosRestantes } from "./compraPorPuntos";
+import { CLASES, type DatosClase } from "./clases";
+import { ORIGENES, type DatosOrigen } from "./origenes";
 
 export interface Personaje {
   nombre: string;
@@ -59,4 +59,38 @@ export function bonoHabilidad(p: Personaje, habilidad: Habilidad): number {
     bono += bonificadorCompetencia(p.nivel);
   }
   return bono;
+}
+
+// ------------------------------------------------------------
+// Lo que el jugador ELIGE en la pantalla de creación. Es lo que
+// se envía al servidor: solo nombres y números, nada calculado.
+// El servidor vuelve a calcular el personaje a partir de esto,
+// así nadie puede mandarle "tengo CA 40".
+// ------------------------------------------------------------
+export interface Eleccion {
+  nombre: string;
+  clase: string;
+  origen: string;
+  atributos: Puntuaciones;
+}
+
+/** Comprueba que la elección cumple las reglas y crea el personaje. Si no, null. */
+export function personajeDesdeEleccion(e: Eleccion): Personaje | null {
+  const clase = CLASES.find((c) => c.nombre === e.clase);
+  const origen = ORIGENES.find((o) => o.nombre === e.origen);
+  if (!clase || !origen || typeof e.nombre !== "string" || e.nombre.length > 20) return null;
+
+  for (const atributo of ATRIBUTOS) {
+    const v = e.atributos?.[atributo];
+    // Number.isInteger descarta textos, decimales y valores que falten.
+    if (!Number.isInteger(v) || v < PUNTUACION_MINIMA || v > PUNTUACION_MAXIMA) return null;
+  }
+  if (puntosRestantes(e.atributos) < 0) return null; // se ha gastado más de 27
+
+  return crearPersonaje(e.nombre, clase, origen, e.atributos);
+}
+
+/** El camino inverso: de un personaje a su elección (para enviarla). */
+export function eleccionDe(p: Personaje): Eleccion {
+  return { nombre: p.nombre, clase: p.clase.nombre, origen: p.origen.nombre, atributos: p.atributos };
 }

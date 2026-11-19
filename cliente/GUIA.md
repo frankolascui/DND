@@ -187,7 +187,73 @@ El `update()` ahora tiene tres "modos", en orden: dado en pantalla → menú abi
 
 Las variables `abierto`, `haDadoPocion`... viven dentro de `crearCofres()` o `crearErmitano()`, pero las funciones flecha de dentro las siguen recordando aunque esa función ya haya terminado. Eso se llama **clausura** (closure).
 
-## 6. Ejercicios para ti (de fácil a difícil)
+## 6. Fase 2: el servidor multijugador
+
+### Cómo arrancarlo todo
+
+Hacen falta **dos terminales**, una para el servidor y otra para el juego:
+
+```bash
+# Terminal 1: el servidor
+cd servidor
+npm install
+npm run dev        # escucha en ws://localhost:2567
+
+# Terminal 2: el juego
+cd cliente
+npm install
+npm run dev        # abre http://localhost:5173
+```
+
+Abre `http://localhost:5173` en **dos pestañas**, crea un personaje en cada una y verás al otro moverse en azul. Si abres un cofre en una pestaña, en la otra también aparece abierto.
+
+Si no arrancas el servidor (o en GitHub Pages, donde no hay servidor), el juego entra en **modo solo** y funciona igual. Arriba a la derecha pone `Online (2/4)` o `Solo`.
+
+### Quién manda: el servidor
+
+```text
+Tú pulsas E ──"intentar cofre-1 / forzar"──▶ SERVIDOR
+                                              ├─ ¿existe el objeto? ¿estás cerca? ¿se puede hacer?
+                                              ├─ tira d20 + bono (con TU personaje, calculado por él)
+Tu dado gira ◀──────"resultado: 14"───────────┤
+                                              └─ 1,6 s después: abre el cofre en el estado
+Todos ven el cofre abierto ◀── sincronización automática del estado
+```
+
+El cliente **nunca** dice "he sacado un 20". Solo dice qué quiere intentar. Por eso no se puede hacer trampa tocando el código del navegador. Por la misma razón, al unirte mandas tu *elección* (clase, origen y puntuaciones) y el servidor vuelve a calcular el personaje con `personajeDesdeEleccion()`. Si alguien envía un 18 en Fuerza o se gasta más de 27 puntos, el servidor lo rechaza.
+
+Una concesión: la posición la sigue decidiendo el cliente, y el servidor solo comprueba que esté dentro del mapa. Validar el movimiento contra los árboles es más trabajo y, por ahora, no aporta mucho.
+
+### Archivos nuevos
+
+```text
+servidor/src/
+├── index.ts          Arranca Colyseus y registra la sala "bosque"
+├── estado.ts         Lo que se sincroniza: jugadores y objetos abiertos
+└── SalaBosque.ts     La partida: entrar, salir, "mover", "intentar"
+cliente/src/
+├── reglas/mundo.ts   Qué acciones hay y qué hace cada una (lo usan los dos)
+├── mundo/objetos.ts  Cofres, puerta y ermitaño como datos
+└── red/
+    ├── Conexion.ts       La interface: lo que la escena puede pedir
+    ├── ConexionOnline.ts Hablar con el servidor
+    ├── ConexionLocal.ts  Jugar solo, con las mismas reglas
+    └── conectar.ts       Intenta el servidor; si falla, modo solo
+```
+
+**El servidor importa las reglas del cliente** (`../../cliente/src/reglas/...`). Así solo existe una versión de las reglas, y no pueden ser distintas en un lado y en otro.
+
+### Conceptos nuevos
+
+- **Estado sincronizado (`schema`)**: en `estado.ts` describimos los datos con `schema({ x: t.number(), ... })`. Cuando el servidor hace `jugador.x = 100`, Colyseus envía ese cambio, y solo ese, a todos. En el cliente lo recibimos con `Callbacks.get(sala).onAdd(...)` y `onChange(...)`.
+- **Mensajes**: `sala.send("intentar", {...})` en el cliente, y `this.onMessage("intentar", ...)` en el servidor. Para contestar a un solo jugador se usa `client.send("resultado", ...)`.
+- **Promise, `async` y `await`**: el resultado del servidor tarda unos milisegundos. `intentar()` devuelve una *Promise*, una promesa de que el valor llegará. Dentro de una función `async`, `await` espera a que llegue sin congelar el juego. Lo ves en `DadoVisual.girar()` y en `EscenaJuego.lanzar()`.
+- **Interface con dos implementaciones**: `ConexionLocal` y `ConexionOnline` cumplen la misma `interface Conexion`. La escena no sabe cuál tiene, y no le hace falta.
+- **`try / catch`**: en `conectar.ts`, si el servidor no responde, el error se "atrapa" y pasamos al modo solo en vez de romper el juego.
+- **Interpolación**: los demás jugadores no saltan a su nueva posición. Cada fotograma recorren el 20 % de lo que les falta, y así se mueven suaves aunque las posiciones lleguen cada 50 ms.
+- **Retraso del efecto**: el servidor manda el resultado al momento, pero cambia el mundo 1,6 s después (`this.clock.setTimeout`), cuando el dado ya se ha parado. Así el cofre no se abre antes de que veas el número.
+
+## 7. Ejercicios para ti (de fácil a difícil)
 
 1. Crea un guerrero y un pícaro y compara qué bono tiene cada uno en "Abrir la cerradura". ¿Por qué es distinto?
 2. Añade un cuarto cofre en `COFRES` con CD 20 y 100 de oro.
@@ -197,5 +263,8 @@ Las variables `abierto`, `haDadoPocion`... viven dentro de `crearCofres()` o `cr
 6. Añade un cuarto origen en `origenes.ts` (por ejemplo, "Cazador" con Percepción y Supervivencia).
 7. Haz que el ermitaño ofrezca una opción de Engaño CD 13.
 8. Cambia `DURACION_GIRO` en `DadoVisual.ts` o el color del dado (busca `0x6b2fb3`).
+
+9. (Fase 2) Haz que el servidor escriba en la terminal cada tirada: quién, qué y cuánto sacó (pista: `console.log` en `SalaBosque.intentar`).
+10. (Fase 2) Muestra a los demás jugadores un aviso cuando alguien abre un cofre (pista: `this.broadcast(...)` en el servidor y `sala.onMessage(...)` en el cliente).
 
 Si te atascas en alguno, pregúntame y lo resolvemos juntos.

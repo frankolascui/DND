@@ -31,22 +31,9 @@ export const MAPA: number[][] = [
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 ];
 
-// Objetos con los que se puede interactuar (posición en casillas).
-export interface DatosCofre {
-  columna: number;
-  fila: number;
-  dificultad: number;
-  oro: number;
+// Los cofres, la puerta y el ermitaño están ahora en mundo/objetos.ts.
+
+/** Pasa de casilla a píxel (centro de la casilla). */
+export function aPixel(casilla: number): number {
+  return casilla * TAMANO_TILE + TAMANO_TILE / 2;
 }
-
-export const COFRES: DatosCofre[] = [
-  { columna: 3, fila: 2, dificultad: 10, oro: 5 },   // fácil, cerca del inicio
-  { columna: 17, fila: 2, dificultad: 14, oro: 15 }, // más lejos, más difícil
-  { columna: 17, fila: 12, dificultad: 16, oro: 40 }, // tras la puerta cerrada
-];
-
-// La puerta cierra el hueco del muro de árboles en (13, 12).
-export const PUERTA = { columna: 13, fila: 12, dificultad: 13 };
-
-// El ermitaño, el primer PNJ.
-export const ERMITANO = { columna: 9, fila: 5 };

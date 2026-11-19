@@ -4,9 +4,8 @@
 // "lanza" pulsando E (o haciendo clic) y gira hasta pararse.
 //
 // MUY IMPORTANTE: este archivo NO decide el resultado. El número
-// lo calculan las reglas (reglas/dados.ts) y aquí solo se anima.
-// Así, cuando el servidor tire los dados (fase 2), esto no cambia:
-// el servidor dirá "salió un 14" y el dado girará hasta el 14.
+// lo decide el servidor (o las reglas, si juegas solo) y aquí solo
+// se anima: el servidor dice "salió un 14" y el dado gira hasta el 14.
 // ============================================================
 import Phaser from "phaser";
 
@@ -17,7 +16,7 @@ type EstadoDado = "oculto" | "esperando" | "girando" | "resultado";
 // Lo que devuelve quien pide la tirada: el número, el texto a mostrar
 // y (opcional) qué hacer cuando el dado se pare.
 export interface ResultadoVisual {
-  valor: number;
+  valor: number | null; // null = no hubo tirada (por ejemplo, el servidor la rechazó)
   texto: string;
   color: string;
   alRevelar?: () => void;
@@ -29,7 +28,7 @@ const DURACION_GIRO = 1400;  // milisegundos que dura el giro
 export class DadoVisual {
   private escena: Phaser.Scene;
   private estado: EstadoDado = "oculto";
-  private tirar: (() => ResultadoVisual) | null = null;
+  private tirar: (() => Promise<ResultadoVisual>) | null = null;
 
   // Piezas que se dibujan
   private velo: Phaser.GameObjects.Rectangle;   // oscurece el fondo
@@ -81,8 +80,9 @@ export class DadoVisual {
   /**
    * Muestra el dado esperando a que el jugador lo lance.
    * `tirar` es una función que se ejecutará en el momento del lanzamiento.
+   * Devuelve una Promise porque el resultado puede tardar (viene del servidor).
    */
-  mostrar(titulo: string, tirar: () => ResultadoVisual): void {
+  mostrar(titulo: string, tirar: () => Promise<ResultadoVisual>): void {
     this.tirar = tirar;
     this.estado = "esperando";
     this.titulo.setText(titulo);
@@ -108,12 +108,15 @@ export class DadoVisual {
     // Si está girando, ignoramos la pulsación: hay que esperar a que pare.
   }
 
-  private girar(): void {
+  // "async" permite usar "await": esperar a que llegue el resultado sin congelar el juego.
+  private async girar(): Promise<void> {
     if (!this.tirar) return;
-    const resultado = this.tirar(); // aquí se tira el dado DE VERDAD
     this.estado = "girando";
     this.escena.tweens.killTweensOf(this.dado); // paramos el latido
     this.dado.setScale(1);
+    this.explicacion.setText("Lanzando...");
+    const resultado = await this.tirar(); // aquí se tira el dado DE VERDAD (o se pide al servidor)
+    if (this.estado !== "girando") return; // por si se cerró mientras esperábamos
     this.explicacion.setText("");
 
     let ultimoCambio = 0;
@@ -141,7 +144,7 @@ export class DadoVisual {
   private revelar(resultado: ResultadoVisual): void {
     this.estado = "resultado";
     this.dado.setRotation(0);
-    this.numero.setText(String(resultado.valor));
+    this.numero.setText(resultado.valor === null ? "—" : String(resultado.valor));
     // 20 en dorado, 1 en rojo, el resto en blanco.
     const colorNumero = resultado.valor === 20 ? "#ffd84a" : resultado.valor === 1 ? "#ff5a5a" : "#ffffff";
     this.numero.setColor(colorNumero);

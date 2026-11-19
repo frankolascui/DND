@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@colyseus/sdk": "^0.18.10",
     "phaser": "3.90.0"
   },
   "devDependencies": {
