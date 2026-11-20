@@ -9,10 +9,8 @@ import { EstadoBosque, Jugador } from "./estado.ts";
 import { personajeDesdeEleccion, type Eleccion, type Personaje } from "../../cliente/src/reglas/personaje.ts";
 import { resolverIntento } from "../../cliente/src/reglas/mundo.ts";
 import { buscarObjeto } from "../../cliente/src/mundo/objetos.ts";
-import { MAPA, TAMANO_TILE, aPixel } from "../../cliente/src/mundo/mapa.ts";
+import { ANCHO_MUNDO, ALTO_MUNDO, INICIO, aPixel } from "../../cliente/src/mundo/mapa.ts";
 
-const ANCHO_MUNDO = MAPA[0].length * TAMANO_TILE;
-const ALTO_MUNDO = MAPA.length * TAMANO_TILE;
 const DISTANCIA_MAXIMA = 60;   // un poco más que en el cliente, por el retraso de red
 const RETRASO_EFECTO = 1600;   // ms: lo que tarda el dado en girar en pantalla
 
@@ -51,8 +49,8 @@ export class SalaBosque extends Room<{ state: EstadoBosque }> {
     const jugador = new Jugador();
     jugador.nombre = personaje.nombre;
     jugador.clase = personaje.clase.nombre;
-    jugador.x = Number(opciones.x) || aPixel(2);
-    jugador.y = Number(opciones.y) || aPixel(7);
+    jugador.x = Number(opciones.x) || aPixel(INICIO.columna);
+    jugador.y = Number(opciones.y) || aPixel(INICIO.fila);
     jugador.oro = 0;
     jugador.pociones = 0;
     jugador.pocionRecibida = false;

@@ -253,7 +253,61 @@ cliente/src/
 - **Interpolación**: los demás jugadores no saltan a su nueva posición. Cada fotograma recorren el 20 % de lo que les falta, y así se mueven suaves aunque las posiciones lleguen cada 50 ms.
 - **Retraso del efecto**: el servidor manda el resultado al momento, pero cambia el mundo 1,6 s después (`this.clock.setTimeout`), cuando el dado ya se ha parado. Así el cofre no se abre antes de que veas el número.
 
-## 7. Ejercicios para ti (de fácil a difícil)
+## 7. Mapa grande y pixel art
+
+### El mapa se escribe como texto
+
+En `mundo/mapa.ts`, el mapa es una lista de 30 líneas de 40 caracteres. Cada carácter es una casilla:
+
+| Carácter | Casilla | ¿Bloquea? |
+| --- | --- | --- |
+| `.` | hierba | no |
+| `d` | hierba oscura (la Hondonada) | no |
+| `=` | camino | no |
+| `p` | puente | no |
+| `~` | agua | sí |
+| `T` | árbol | sí |
+| `o` | roca | sí |
+| `b` | arbusto | sí |
+| `,` | flores | no |
+| `"` | hierba alta | no |
+
+Para cambiar el mapa, cambia letras. Por ejemplo, pon una `T` en mitad del camino y aparecerá un árbol que corta el paso.
+
+Distribución: al oeste está el claro de inicio y el ermitaño. En el centro, el lago y el río, que **solo se cruza por el puente**. Al este, la Hondonada (hierba oscura), con el cofre de CD 14 y el recinto cerrado por la puerta.
+
+### Dos capas
+
+El texto se convierte en dos tablas de números, como dos hojas de papel transparente una encima de otra:
+
+- `MAPA` (suelo): hierba, agua, camino, puente.
+- `DECORACION` (encima): árboles, rocas, arbustos, flores y hierba alta, con el fondo transparente.
+
+Así el mismo árbol vale para la hierba clara y para la oscura. Para saber qué suelo hay debajo de un árbol, `sueloDe()` mira a los vecinos y elige el color más común.
+
+### Pixel art hecho con código (`ui/pixelArt.ts`)
+
+No hay ningún archivo de imagen: todo se dibuja con código al arrancar.
+
+- Los dibujos miden 16×16 "píxeles de arte" y cada uno se pinta como un cuadrado de 2×2 en pantalla (`ESCALA = 2`).
+- Los personajes y objetos se escriben como **texto con paleta**: `"kGGhhGGk"` significa contorno, verde, verde, brillo... Cada letra es un color de la `Paleta`.
+- Los personajes son simétricos. Solo escribimos la mitad izquierda y `simetrico()` la refleja.
+- Cada clase usa el mismo cuerpo con otra paleta y otra arma (`espada`, `daga`, `baston`, `maza`).
+- La hierba, el agua y el camino usan manchas "aleatorias" con semilla fija (`aleatorio(semilla)`). Parecen desordenadas, pero salen siempre iguales.
+
+### Animación
+
+Cada personaje tiene 3 cuadros: quieto, paso A y paso B. `anims.create` monta la animación `guerrero-andar` (A, quieto, B, quieto...) a 8 cuadros por segundo. En `animar()`:
+
+- si te mueves, se reproduce la animación; si no, se queda en el cuadro "quieto";
+- si vas a la izquierda, `setFlipX(true)` dibuja el personaje en espejo;
+- `setDepth(y)` hace que lo que está más abajo en pantalla se dibuje delante (pseudo-3D).
+
+### Cámara
+
+El mundo mide 1280×960 y la pantalla 640×480, así que `cameras.main.startFollow(jugador)` hace que la cámara siga al jugador. Los textos de la interfaz, el menú y el dado llevan `setScrollFactor(0)` para quedarse quietos en pantalla.
+
+## 8. Ejercicios para ti (de fácil a difícil)
 
 1. Crea un guerrero y un pícaro y compara qué bono tiene cada uno en "Abrir la cerradura". ¿Por qué es distinto?
 2. Añade un cuarto cofre en `COFRES` con CD 20 y 100 de oro.
@@ -266,5 +320,9 @@ cliente/src/
 
 9. (Fase 2) Haz que el servidor escriba en la terminal cada tirada: quién, qué y cuánto sacó (pista: `console.log` en `SalaBosque.intentar`).
 10. (Fase 2) Muestra a los demás jugadores un aviso cuando alguien abre un cofre (pista: `this.broadcast(...)` en el servidor y `sala.onMessage(...)` en el cliente).
+
+11. (Arte) Cambia el color de la túnica del pícaro en `SPRITES.picaro.paleta`.
+12. (Mapa) Abre un segundo puente en el río, más al sur.
+13. (Arte) Diseña un sombrero distinto para el clérigo cambiando las primeras filas de un cuerpo nuevo.
 
 Si te atascas en alguno, pregúntame y lo resolvemos juntos.

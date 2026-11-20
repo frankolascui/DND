@@ -10,7 +10,10 @@
 // lo pide a la "conexión" (servidor, o reglas locales si juegas solo).
 // ============================================================
 import Phaser from "phaser";
-import { MAPA, TAMANO_TILE, ARBOL, AGUA, aPixel } from "../mundo/mapa";
+import {
+  MAPA, DECORACION, TAMANO_TILE, BLOQUEAN, HIERBA_OSCURA, HIERBA_OSCURA_2, ANCHO_MUNDO, ALTO_MUNDO, INICIO, aPixel,
+} from "../mundo/mapa";
+import { crearArte, claveSprite } from "../ui/pixelArt";
 import { OBJETOS } from "../mundo/objetos";
 import { describirTirada } from "../reglas/dados";
 import { bonoHabilidad, esCompetente, type Personaje } from "../reglas/personaje";
@@ -26,7 +29,9 @@ const ENVIO_CADA_MS = 50;         // cada cuánto le decimos al servidor dónde 
 
 /** Otro jugador que vemos en pantalla. */
 interface OtroJugador {
-  sprite: Phaser.GameObjects.Image;
+  sprite: Phaser.GameObjects.Sprite;
+  sombra: Phaser.GameObjects.Image;
+  clave: string; // qué dibujo usa ("guerrero", "mago"...)
   etiqueta: Phaser.GameObjects.Text;
   destinoX: number;
   destinoY: number;
@@ -37,6 +42,9 @@ export class EscenaJuego extends Phaser.Scene {
   private conexion: Conexion | null = null; // null mientras nos conectamos
 
   private jugador!: Phaser.Physics.Arcade.Sprite;
+  private sombra!: Phaser.GameObjects.Image;
+  private clave = "guerrero";    // el dibujo de nuestra clase
+  private zonaActual = "";
   private teclas!: Record<"W" | "A" | "S" | "D" | "E", Phaser.Input.Keyboard.Key>;
   private sprites = new Map<string, Phaser.Physics.Arcade.Image>(); // id de objeto -> sprite
   private otros = new Map<string, OtroJugador>();                   // id de jugador -> dibujo
@@ -61,10 +69,10 @@ export class EscenaJuego extends Phaser.Scene {
   }
 
   create(): void {
-    this.crearTexturas();
-    const capa = this.crearMapa();
-    this.jugador = this.physics.add.sprite(aPixel(2), aPixel(7), "jugador").setCollideWorldBounds(true);
-    this.physics.add.collider(this.jugador, capa);
+    crearArte(this); // dibuja todas las texturas (ui/pixelArt.ts)
+    const capas = this.crearMapa();
+    this.crearJugador();
+    for (const capa of capas) this.physics.add.collider(this.jugador, capa);
     this.crearObjetos();
 
     this.crearInterfaz();
@@ -110,6 +118,7 @@ export class EscenaJuego extends Phaser.Scene {
 
     this.moverJugador();
     this.enviarPosicion(tiempo);
+    this.comprobarZona();
     if (J(this.teclas.E)) this.interactuar();
     this.actualizarAyuda();
   }
@@ -124,6 +133,26 @@ export class EscenaJuego extends Phaser.Scene {
     if (this.teclas.S.isDown) y += 1;
     const direccion = new Phaser.Math.Vector2(x, y).normalize();
     this.jugador.setVelocity(direccion.x * VELOCIDAD, direccion.y * VELOCIDAD);
+    this.animar(this.jugador, x !== 0 || y !== 0, x);
+    this.colocarSombra(this.jugador, this.sombra);
+  }
+
+  /** Si se mueve, reproduce la animación de andar; si no, se queda en el cuadro "quieto". */
+  private animar(sprite: Phaser.GameObjects.Sprite, moviendose: boolean, dx: number): void {
+    const clave = sprite.texture.key;
+    if (moviendose) {
+      sprite.anims.play(`${clave}-andar`, true); // true = no reiniciar si ya estaba sonando
+      if (dx !== 0) sprite.setFlipX(dx < 0);    // mirar a la izquierda = dibujo en espejo
+    } else {
+      sprite.anims.stop();
+      sprite.setFrame("0");
+    }
+    // Profundidad = posición y: lo que está más abajo se dibuja delante.
+    sprite.setDepth(sprite.y);
+  }
+
+  private colocarSombra(sprite: Phaser.GameObjects.Sprite, sombra: Phaser.GameObjects.Image): void {
+    sombra.setPosition(sprite.x, sprite.y + 14).setDepth(sprite.y - 1);
   }
 
   /** Manda nuestra posición, pero solo si nos hemos movido y como mucho cada 50 ms. */
@@ -142,9 +171,13 @@ export class EscenaJuego extends Phaser.Scene {
    */
   private moverOtros(): void {
     for (const otro of this.otros.values()) {
-      otro.sprite.x += (otro.destinoX - otro.sprite.x) * 0.2;
-      otro.sprite.y += (otro.destinoY - otro.sprite.y) * 0.2;
-      otro.etiqueta.setPosition(otro.sprite.x, otro.sprite.y - 20);
+      const dx = (otro.destinoX - otro.sprite.x) * 0.2;
+      const dy = (otro.destinoY - otro.sprite.y) * 0.2;
+      otro.sprite.x += dx;
+      otro.sprite.y += dy;
+      this.animar(otro.sprite, Math.abs(dx) + Math.abs(dy) > 0.3, Math.abs(dx) > 0.1 ? dx : 0);
+      this.colocarSombra(otro.sprite, otro.sombra);
+      otro.etiqueta.setPosition(otro.sprite.x, otro.sprite.y - 24).setDepth(10000);
     }
   }
 
@@ -157,11 +190,13 @@ export class EscenaJuego extends Phaser.Scene {
     let otro = this.otros.get(id);
     if (!otro) {
       // Primera vez que lo vemos: le creamos un dibujo y un nombre encima.
-      const sprite = this.add.image(j.x, j.y, "otro-jugador");
-      const etiqueta = this.add.text(j.x, j.y - 20, `${j.nombre} (${j.clase})`, {
-        fontSize: "10px", color: "#ffffff", backgroundColor: "#00000088",
+      const clave = claveSprite(j.clase);
+      const sombra = this.add.image(j.x, j.y + 14, "sombra");
+      const sprite = this.add.sprite(j.x, j.y, clave, "0");
+      const etiqueta = this.add.text(j.x, j.y - 24, `${j.nombre} (${j.clase})`, {
+        fontSize: "10px", color: "#9fd3ff", backgroundColor: "#00000088", padding: { x: 2, y: 1 },
       }).setOrigin(0.5);
-      otro = { sprite, etiqueta, destinoX: j.x, destinoY: j.y };
+      otro = { sprite, sombra, clave, etiqueta, destinoX: j.x, destinoY: j.y };
       this.otros.set(id, otro);
       this.avisar(`${j.nombre} ha entrado en el bosque.`);
     }
@@ -174,6 +209,7 @@ export class EscenaJuego extends Phaser.Scene {
     const otro = this.otros.get(id);
     if (!otro) return;
     otro.sprite.destroy();
+    otro.sombra.destroy();
     otro.etiqueta.destroy();
     this.otros.delete(id);
     this.actualizarEstado();
@@ -254,7 +290,12 @@ export class EscenaJuego extends Phaser.Scene {
   private crearObjetos(): void {
     const textura = { cofre: "cofre", puerta: "puerta", pnj: "ermitano" };
     for (const objeto of OBJETOS) {
-      const sprite = this.physics.add.staticImage(aPixel(objeto.columna), aPixel(objeto.fila), textura[objeto.tipo]);
+      const x = aPixel(objeto.columna);
+      const y = aPixel(objeto.fila);
+      if (objeto.tipo === "pnj") this.add.image(x, y + 14, "sombra").setDepth(y - 1);
+      // El ermitaño es una hoja de 3 cuadros: usamos el cuadro "0" (quieto).
+      const sprite = this.physics.add.staticImage(x, y, textura[objeto.tipo], objeto.tipo === "pnj" ? "0" : undefined);
+      sprite.setDepth(y);
       this.physics.add.collider(this.jugador, sprite);
       this.sprites.set(objeto.id, sprite);
     }
@@ -262,72 +303,57 @@ export class EscenaJuego extends Phaser.Scene {
 
   // ---------- Montaje del mundo ----------
 
-  /** Aún no hay pixel art: dibujamos formas sencillas y las guardamos como texturas. */
-  private crearTexturas(): void {
-    if (this.textures.exists("tiles")) return; // ya creadas en una partida anterior
-    const g = this.add.graphics();
-    const t = TAMANO_TILE;
+  private crearJugador(): void {
+    this.clave = claveSprite(this.personaje.clase.nombre);
+    const x = aPixel(INICIO.columna);
+    const y = aPixel(INICIO.fila);
+    this.sombra = this.add.image(x, y + 14, "sombra");
+    this.jugador = this.physics.add.sprite(x, y, this.clave, "0").setCollideWorldBounds(true);
+    // La "caja" que choca es solo la de los pies: así puedes pasar pegado a un árbol.
+    this.jugador.body!.setSize(16, 10).setOffset(8, 22);
 
-    // Tileset: tres baldosas en fila -> [hierba][árbol][agua]
-    g.fillStyle(0x3f7a3a).fillRect(0, 0, t, t);
-    g.fillStyle(0x2f5f2b).fillRect(6, 8, 4, 4).fillRect(20, 18, 4, 4);
-    g.fillStyle(0x3f7a3a).fillRect(t, 0, t, t);
-    g.fillStyle(0x5a3a1e).fillRect(t + 13, 20, 6, 12);
-    g.fillStyle(0x1f4a1c).fillCircle(t + 16, 13, 12);
-    g.fillStyle(0x2b5fa8).fillRect(t * 2, 0, t, t);
-    g.fillStyle(0x4a7fc8).fillRect(t * 2 + 5, 10, 10, 2).fillRect(t * 2 + 16, 22, 10, 2);
-    g.generateTexture("tiles", t * 3, t);
-    g.clear();
-
-    g.fillStyle(0xf2d16b).fillRect(6, 2, 12, 10);
-    g.fillStyle(0x7a3fb0).fillRect(4, 12, 16, 12);
-    g.generateTexture("jugador", 24, 24);
-    g.clear();
-
-    // Los demás jugadores, en azul, para distinguirlos de ti.
-    g.fillStyle(0xf2d16b).fillRect(6, 2, 12, 10);
-    g.fillStyle(0x2f7ab0).fillRect(4, 12, 16, 12);
-    g.generateTexture("otro-jugador", 24, 24);
-    g.clear();
-
-    g.fillStyle(0xd8d8d8).fillRect(6, 0, 12, 6);    // pelo blanco
-    g.fillStyle(0xe8c39e).fillRect(6, 4, 12, 8);    // cara
-    g.fillStyle(0x6d6a4a).fillRect(3, 12, 18, 14);  // túnica
-    g.generateTexture("ermitano", 24, 26);
-    g.clear();
-
-    g.fillStyle(0x7a4a22).fillRect(0, 0, t, t);
-    g.fillStyle(0x4f2e12).fillRect(0, 10, t, 3).fillRect(0, 22, t, 3);
-    g.fillStyle(0xd9b23a).fillRect(24, 14, 4, 4);
-    g.generateTexture("puerta", t, t);
-    g.clear();
-
-    g.fillStyle(0x8a5a2b).fillRect(2, 8, 24, 18);
-    g.fillStyle(0xd9b23a).fillRect(12, 14, 4, 6);
-    g.generateTexture("cofre", 28, 28);
-    g.clear();
-    g.fillStyle(0x8a5a2b).fillRect(2, 14, 24, 12);
-    g.fillStyle(0x5a3a1e).fillRect(2, 4, 24, 6);
-    g.fillStyle(0xffe066).fillRect(6, 12, 16, 4);
-    g.generateTexture("cofre-abierto", 28, 28);
-
-    g.destroy();
+    // El mundo es más grande que la pantalla: la cámara sigue al jugador.
+    this.physics.world.setBounds(0, 0, ANCHO_MUNDO, ALTO_MUNDO);
+    this.cameras.main.setBounds(0, 0, ANCHO_MUNDO, ALTO_MUNDO);
+    this.cameras.main.startFollow(this.jugador, true, 0.15, 0.15); // 0.15 = suavizado
+    this.cameras.main.setRoundPixels(true); // evita que el pixel art se vea borroso
+    this.cameras.main.fadeIn(600);
   }
 
-  private crearMapa(): Phaser.Tilemaps.TilemapLayer {
-    const mapa = this.make.tilemap({ data: MAPA, tileWidth: TAMANO_TILE, tileHeight: TAMANO_TILE });
-    const tileset = mapa.addTilesetImage("tiles", "tiles", TAMANO_TILE, TAMANO_TILE, 0, 0)!;
-    const capa = mapa.createLayer(0, tileset, 0, 0)!;
-    capa.setCollision([ARBOL, AGUA]);
-    return capa;
+  /** Avisa cuando entras en otra zona del mapa. */
+  private comprobarZona(): void {
+    const columna = Math.floor(this.jugador.x / TAMANO_TILE);
+    const fila = Math.floor(this.jugador.y / TAMANO_TILE);
+    const baldosa = MAPA[fila]?.[columna];
+    const zona = baldosa === HIERBA_OSCURA || baldosa === HIERBA_OSCURA_2 ? "La Hondonada" : "El Bosque Ceniciento";
+    if (zona === this.zonaActual) return;
+    // La primera vez (al empezar) también lo anunciamos.
+    this.zonaActual = zona;
+    this.avisar(zona === "La Hondonada" ? "La Hondonada: aquí todo es más difícil." : zona);
   }
+
+  /** Dos capas: el suelo y, encima, la decoración. Las dos chocan con lo que BLOQUEAN. */
+  private crearMapa(): Phaser.Tilemaps.TilemapLayer[] {
+    return [MAPA, DECORACION].map((datos, i) => {
+      const mapa = this.make.tilemap({ data: datos, tileWidth: TAMANO_TILE, tileHeight: TAMANO_TILE });
+      const tileset = mapa.addTilesetImage("tiles", "tiles", TAMANO_TILE, TAMANO_TILE, 0, 0)!;
+      const capa = mapa.createLayer(0, tileset, 0, 0)!;
+      capa.setCollision(BLOQUEAN);
+      capa.setDepth(i === 0 ? -2 : -1); // siempre por debajo de personajes y objetos
+      return capa;
+    });
+  }
+
 
   // ---------- Interfaz ----------
   private crearInterfaz(): void {
     const estilo = { fontSize: "12px", color: "#ffffff", backgroundColor: "#00000088", padding: { x: 4, y: 2 } };
-    this.textoEstado = this.add.text(8, 6, "", estilo).setDepth(50);
-    this.textoAyuda = this.add.text(320, 470, "", estilo).setOrigin(0.5, 1).setDepth(50);
-    this.textoAviso = this.add.text(320, 40, "", { ...estilo, fontSize: "14px" }).setOrigin(0.5, 0).setDepth(50).setVisible(false);
+    // setScrollFactor(0) = "pegado a la pantalla": no se mueve con la cámara.
+    // Profundidad 20000: por encima de todo el mundo (cuya profundidad es su y, como mucho 960).
+    this.textoEstado = this.add.text(8, 6, "", estilo).setScrollFactor(0).setDepth(20000);
+    this.textoAyuda = this.add.text(320, 470, "", estilo).setOrigin(0.5, 1).setScrollFactor(0).setDepth(20000);
+    this.textoAviso = this.add.text(320, 40, "", { ...estilo, fontSize: "14px" })
+      .setOrigin(0.5, 0).setScrollFactor(0).setDepth(20000).setVisible(false);
   }
 
   private actualizarEstado(): void {

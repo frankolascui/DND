@@ -66,8 +66,9 @@ export class DadoVisual {
     }).setOrigin(0.5, 0);
 
     // Que siempre se dibuje por encima de todo lo demás.
+    // Por encima de todo y pegado a la pantalla (no se mueve con la cámara).
     for (const obj of [this.velo, this.dado, this.titulo, this.explicacion]) {
-      obj.setDepth(100);
+      obj.setDepth(30000).setScrollFactor(0);
     }
     this.ocultar();
   }

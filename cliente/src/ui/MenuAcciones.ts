@@ -25,11 +25,11 @@ export class MenuAcciones {
     this.escena = escena;
     const { width, height } = escena.scale;
     this.fondo = escena.add.rectangle(width / 2, height - 90, 560, 140, 0x000000, 0.8)
-      .setStrokeStyle(2, 0xe9dcff).setDepth(90);
+      .setStrokeStyle(2, 0xe9dcff).setDepth(25000).setScrollFactor(0);
     this.titulo = escena.add.text(width / 2, height - 152, "", { fontSize: "15px", color: "#ffd84a" })
-      .setOrigin(0.5, 0).setDepth(91);
+      .setOrigin(0.5, 0).setDepth(25001).setScrollFactor(0);
     this.lineas = escena.add.text(width / 2 - 262, height - 128, "", { fontSize: "14px", color: "#ffffff", lineSpacing: 6 })
-      .setDepth(91);
+      .setDepth(25001).setScrollFactor(0);
     this.cerrar();
   }
 

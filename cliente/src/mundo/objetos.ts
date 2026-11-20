@@ -8,7 +8,7 @@ import type { ObjetoMundo } from "../reglas/mundo";
 
 export const OBJETOS: ObjetoMundo[] = [
   {
-    id: "cofre-1", nombre: "Cofre pequeño", tipo: "cofre", columna: 3, fila: 2, oro: 5,
+    id: "cofre-1", nombre: "Cofre pequeño", tipo: "cofre", columna: 5, fila: 3, oro: 5,
     acciones: [
       { id: "forzar", texto: "Forzar la tapa", habilidad: "Atletismo", dificultad: 10, efecto: "abrir",
         mensajeExito: "¡Crac! Dentro hay 5 monedas de oro.", mensajeFallo: "La tapa no cede." },
@@ -17,7 +17,7 @@ export const OBJETOS: ObjetoMundo[] = [
     ],
   },
   {
-    id: "cofre-2", nombre: "Cofre pequeño", tipo: "cofre", columna: 17, fila: 2, oro: 15,
+    id: "cofre-2", nombre: "Cofre pequeño", tipo: "cofre", columna: 33, fila: 4, oro: 15,
     acciones: [
       { id: "forzar", texto: "Forzar la tapa", habilidad: "Atletismo", dificultad: 14, efecto: "abrir",
         mensajeExito: "¡Crac! Dentro hay 15 monedas de oro.", mensajeFallo: "La tapa no cede." },
@@ -26,7 +26,7 @@ export const OBJETOS: ObjetoMundo[] = [
     ],
   },
   {
-    id: "cofre-3", nombre: "Cofre pesado", tipo: "cofre", columna: 17, fila: 12, oro: 40,
+    id: "cofre-3", nombre: "Cofre pesado", tipo: "cofre", columna: 35, fila: 24, oro: 40,
     acciones: [
       { id: "forzar", texto: "Forzar la tapa", habilidad: "Atletismo", dificultad: 16, efecto: "abrir",
         mensajeExito: "¡Crac! Dentro hay 40 monedas de oro.", mensajeFallo: "La tapa no cede." },
@@ -35,7 +35,7 @@ export const OBJETOS: ObjetoMundo[] = [
     ],
   },
   {
-    id: "puerta-1", nombre: "Puerta de madera atrancada", tipo: "puerta", columna: 13, fila: 12,
+    id: "puerta-1", nombre: "Puerta de madera atrancada", tipo: "puerta", columna: 31, fila: 24,
     acciones: [
       { id: "empujar", texto: "Empujar con el hombro", habilidad: "Atletismo", dificultad: 13, efecto: "abrir",
         mensajeExito: "La puerta se abre de golpe.", mensajeFallo: "Te duele el hombro." },
@@ -44,7 +44,7 @@ export const OBJETOS: ObjetoMundo[] = [
     ],
   },
   {
-    id: "ermitano", nombre: "El ermitaño", tipo: "pnj", columna: 9, fila: 5,
+    id: "ermitano", nombre: "El ermitaño", tipo: "pnj", columna: 12, fila: 4,
     acciones: [
       { id: "pedir", texto: "Pedirle ayuda", habilidad: "Persuasión", dificultad: 12, efecto: "pocion",
         mensajeExito: "\"Toma, una poción. Cuídate en el bosque.\"", mensajeFallo: "\"No me fío de ti. Vuelve más tarde.\"" },

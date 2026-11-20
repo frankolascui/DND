@@ -13,6 +13,7 @@ import {
 } from "../reglas/compraPorPuntos";
 import { crearPersonaje } from "../reglas/personaje";
 import { modificador } from "../reglas/dados";
+import { crearArte, claveSprite } from "../ui/pixelArt";
 
 const NOMBRES = ["Aren", "Brisa", "Coral", "Dain", "Eira", "Fenn"];
 
@@ -34,6 +35,7 @@ export class EscenaCreacion extends Phaser.Scene {
 
   private textoIzquierda!: Phaser.GameObjects.Text;
   private textoDerecha!: Phaser.GameObjects.Text;
+  private vistaPrevia!: Phaser.GameObjects.Sprite;
   private teclas!: Record<"W" | "A" | "S" | "D" | "E", Phaser.Input.Keyboard.Key>;
 
   constructor() {
@@ -43,6 +45,11 @@ export class EscenaCreacion extends Phaser.Scene {
   create(): void {
     // Empezamos con el reparto recomendado de la primera clase.
     this.puntuaciones = { ...CLASES[this.indiceClase].recomendado };
+    crearArte(this); // las texturas se comparten con la escena de juego
+
+    // El personaje en grande (x3), caminando sin moverse del sitio.
+    this.add.image(560, 412, "sombra").setScale(3);
+    this.vistaPrevia = this.add.sprite(560, 372, "guerrero", "0").setScale(3);
 
     this.add.text(320, 14, "Crea tu personaje", { fontSize: "22px", color: "#ffd84a" }).setOrigin(0.5, 0);
     this.add.text(320, 452, "W/S: fila · A/D: cambiar · E: empezar", { fontSize: "12px", color: "#bbbbbb" }).setOrigin(0.5, 0);
@@ -81,6 +88,11 @@ export class EscenaCreacion extends Phaser.Scene {
       this.indiceClase = ciclo(this.indiceClase, CLASES.length);
       // Al cambiar de clase cargamos su reparto recomendado.
       this.puntuaciones = { ...CLASES[this.indiceClase].recomendado };
+    crearArte(this); // las texturas se comparten con la escena de juego
+
+    // El personaje en grande (x3), caminando sin moverse del sitio.
+    this.add.image(560, 412, "sombra").setScale(3);
+    this.vistaPrevia = this.add.sprite(560, 372, "guerrero", "0").setScale(3);
     } else if (fila === "origen") {
       this.indiceOrigen = ciclo(this.indiceOrigen, ORIGENES.length);
     } else if (fila !== "empezar") {
@@ -126,6 +138,9 @@ export class EscenaCreacion extends Phaser.Scene {
     lineas.push(`${cursor("empezar")}[ Empezar aventura ]`);
     if (this.aviso) lineas.push("", this.aviso);
     this.textoIzquierda.setText(lineas.join("\n"));
+
+    const clave = claveSprite(p.clase.nombre);
+    this.vistaPrevia.play(`${clave}-andar`, true);
 
     this.textoDerecha.setText([
       `${p.clase.nombre}: ${p.clase.descripcion}`,
